@@ -23,7 +23,6 @@
       color: #111;
     }
 
-    /* ── subtle dot grid bg ── */
     body::before {
       content: '';
       position: fixed;
@@ -36,11 +35,8 @@
     }
 
     .page-wrap { position: relative; z-index: 1; }
-
-    /* mono clock digits */
     .mono { font-family: var(--font-mono); }
 
-    /* card hover lift */
     .tz-card {
       transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
     }
@@ -49,14 +45,12 @@
       box-shadow: 0 12px 32px -6px rgba(0,0,0,0.12);
     }
 
-    /* working pulse dot */
     @keyframes dot-pulse {
       0%, 100% { opacity: 1; transform: scale(1); }
       50%       { opacity: 0.55; transform: scale(0.75); }
     }
     .pulse-dot { animation: dot-pulse 2s ease-in-out infinite; }
 
-    /* page-load fade stagger */
     @keyframes fadeSlideUp {
       from { opacity: 0; transform: translateY(10px); }
       to   { opacity: 1; transform: translateY(0); }
@@ -66,16 +60,30 @@
     .delay-2 { animation-delay: 0.16s; }
     .delay-3 { animation-delay: 0.24s; }
 
-    /* local clock colon blink */
     @keyframes blink { 0%,49%{opacity:1} 50%,100%{opacity:0.2} }
     .colon-blink { animation: blink 1s step-start infinite; }
+
+    .copy-feedback {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #111;
+      color: #fff;
+      padding: 8px 16px;
+      border-radius: 99px;
+      font-size: 12px;
+      font-weight: 600;
+      opacity: 0;
+      transition: opacity 0.2s;
+      pointer-events: none;
+    }
   </style>
 </head>
 <body class="min-h-screen py-16 px-5">
 
   <div class="page-wrap w-full max-w-2xl mx-auto">
 
-    <!-- ── Header ── -->
     <header class="mb-14 fade-in">
       <div class="inline-flex items-center gap-2 mb-6 bg-white border border-neutral-200 rounded-full px-3.5 py-1.5 shadow-sm">
         <span class="w-1.5 h-1.5 rounded-full bg-indigo-500 pulse-dot"></span>
@@ -84,10 +92,9 @@
       <h1 class="text-[2.6rem] leading-[1.1] font-bold tracking-[-0.04em] text-neutral-900 mb-3">
         Check any time zone<br><span class="text-indigo-500">instantly.</span>
       </h1>
-      <p class="text-neutral-400 text-lg font-light">See if they are awake or working right now.</p>
+      <p class="text-neutral-400 text-lg font-light">Stop the math. See who's awake instantly.</p>
     </header>
 
-    <!-- ── Local Time Hero ── -->
     <div class="fade-in delay-1 mb-10 bg-white rounded-2xl border border-neutral-150 shadow-[0_2px_16px_-4px_rgba(0,0,0,0.08)] p-7 flex items-center justify-between gap-4">
       <div>
         <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-400 mb-1.5">Your Local Time</p>
@@ -103,10 +110,8 @@
       </div>
     </div>
 
-    <!-- ── City Cards ── -->
     <div id="cards-container" class="fade-in delay-2 grid grid-cols-1 sm:grid-cols-2 gap-3.5 mb-14"></div>
 
-    <!-- ── Footer ── -->
     <footer class="fade-in delay-3 flex items-center justify-center gap-2 text-[11px] font-medium uppercase tracking-[0.15em] text-neutral-300">
       <span>Simple &amp; Fast</span>
       <span class="w-1 h-1 rounded-full bg-neutral-300 inline-block"></span>
@@ -115,16 +120,18 @@
       <span>2026</span>
     </footer>
 
-  </div><!-- /page-wrap -->
+  </div>
+
+  <div id="copy-toast" class="copy-feedback">Time copied to clipboard!</div>
 
   <script>
     const cities = [
       { name: 'New York',       zone: 'America/New_York' },
-      { name: 'London',         zone: 'Europe/London' },
-      { name: 'Dubai',          zone: 'Asia/Dubai' },
-      { name: 'Singapore',      zone: 'Asia/Singapore' },
-      { name: 'Tokyo',          zone: 'Asia/Tokyo' },
-      { name: 'San Francisco',  zone: 'America/Los_Angeles' },
+      { name: 'London',          zone: 'Europe/London' },
+      { name: 'Dubai',           zone: 'Asia/Dubai' },
+      { name: 'Singapore',       zone: 'Asia/Singapore' },
+      { name: 'Tokyo',           zone: 'Asia/Tokyo' },
+      { name: 'San Francisco',   zone: 'America/Los_Angeles' },
     ];
 
     const localZone   = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -133,15 +140,23 @@
     const mmEl        = document.getElementById('mm');
     const ssEl        = document.getElementById('ss');
     const container   = document.getElementById('cards-container');
+    const toast       = document.getElementById('copy-toast');
 
     localZoneEl.textContent = localZone.replace(/_/g, ' ');
 
     function pad(n) { return String(n).padStart(2, '0'); }
 
+    function showToast() {
+      toast.style.opacity = '1';
+      setTimeout(() => { toast.style.opacity = '0'; }, 2000);
+    }
+
+    function copyTime(time) {
+      navigator.clipboard.writeText(time).then(showToast);
+    }
+
     function updateTimes() {
       const now = new Date();
-
-      // local clock
       hhEl.textContent = pad(now.getHours());
       mmEl.textContent = pad(now.getMinutes());
       ssEl.textContent = pad(now.getSeconds());
@@ -153,13 +168,14 @@
         const localDate   = new Date(now.toLocaleString('en-US', { timeZone: localZone }));
 
         const timeStr     = targetDate.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+        const dayName     = targetDate.toLocaleDateString('en-US', { weekday: 'short' });
+        
         const diffHours   = Math.round((targetDate - localDate) / (1000 * 60 * 60));
         const diffText    = diffHours === 0 ? 'Same time' : diffHours > 0 ? `+${diffHours}h` : `${diffHours}h`;
 
         const hour        = targetDate.getHours();
         const isWorking   = hour >= 9 && hour < 18;
 
-        // working badge
         const badge = isWorking
           ? `<span class="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-full">
                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot shrink-0"></span>Working
@@ -168,18 +184,16 @@
                <span class="w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0"></span>Away
              </span>`;
 
-        const borderClass = isWorking
-          ? 'border-emerald-200 bg-white'
-          : 'border-neutral-200 bg-white';
-
-        const diffColor = diffHours === 0
-          ? 'text-indigo-400'
-          : isWorking ? 'text-emerald-400' : 'text-neutral-400';
+        const borderClass = isWorking ? 'border-emerald-200' : 'border-neutral-200';
+        const diffColor = diffHours === 0 ? 'text-indigo-400' : isWorking ? 'text-emerald-400' : 'text-neutral-400';
 
         const card = `
-          <div class="tz-card rounded-2xl border ${borderClass} p-5 cursor-default select-none">
+          <div class="tz-card rounded-2xl border bg-white ${borderClass} p-5 cursor-pointer select-none" onclick="copyTime('${timeStr}')">
             <div class="flex items-center justify-between mb-4">
-              <span class="text-[13px] font-semibold text-neutral-700 tracking-tight">${city.name}</span>
+              <div class="flex flex-col">
+                <span class="text-[13px] font-semibold text-neutral-700 tracking-tight">${city.name}</span>
+                <span class="text-[10px] font-bold text-neutral-300 uppercase">${dayName}</span>
+              </div>
               ${badge}
             </div>
             <div class="mono text-[2.4rem] font-medium leading-none tracking-tight text-neutral-900 mb-3">${timeStr}</div>
