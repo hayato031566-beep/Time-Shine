@@ -102,6 +102,11 @@
             <div id="local-zone-label" class="text-sm font-semibold text-indigo-600 mb-1"></div>
             <div id="local-time" class="mono text-5xl md:text-6xl font-bold tracking-tight text-slate-900 mb-2"></div>
             <div id="local-date" class="text-slate-500 font-medium"></div>
+
+            <div class="mt-4 max-w-sm">
+              <label for="local-zone-select" class="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">Your Time Zone</label>
+              <input list="tz-list" id="local-zone-select" placeholder="Search city or timezone..." class="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
+            </div>
           </div>
           <div class="text-right hidden md:block">
             <div class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 shadow-sm">
@@ -199,7 +204,7 @@
 
   <script>
     // --- State Management ---
-    const localZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    let localZone = localStorage.getItem('wc_localZone') || Intl.DateTimeFormat().resolvedOptions().timeZone;
     let is24Hour = localStorage.getItem('wc_24h') === 'true';
     let cities = JSON.parse(localStorage.getItem('wc_cities')) || ['America/New_York', 'Europe/London', 'Asia/Tokyo'];
     let contacts = JSON.parse(localStorage.getItem('wc_contacts')) || [];
@@ -210,6 +215,7 @@
     const localTimeEl = document.getElementById('local-time');
     const localDateEl = document.getElementById('local-date');
     const localZoneLabel = document.getElementById('local-zone-label');
+    const localZoneSelect = document.getElementById('local-zone-select');
     const citiesGrid = document.getElementById('cities-grid');
     const contactsGrid = document.getElementById('contacts-grid');
     const sectionContacts = document.getElementById('section-contacts');
@@ -229,6 +235,7 @@
 
       // UI Init
       localZoneLabel.textContent = formatZoneName(localZone);
+      localZoneSelect.value = localZone;
       updateFormatBtnText();
       
       // Event Listeners
@@ -237,6 +244,18 @@
         localStorage.setItem('wc_24h', is24Hour);
         updateFormatBtnText();
         renderTick();
+      });
+
+      localZoneSelect.addEventListener('change', () => {
+        if (allZones.includes(localZoneSelect.value)) {
+          localZone = localZoneSelect.value;
+          localStorage.setItem('wc_localZone', localZone);
+          localZoneLabel.textContent = formatZoneName(localZone);
+          renderTick();
+        } else {
+          showToast('Invalid timezone', true);
+          localZoneSelect.value = localZone;
+        }
       });
 
       document.getElementById('form-city').addEventListener('submit', (e) => {
@@ -377,8 +396,9 @@
       const dateOpts = { weekday: 'long', month: 'long', day: 'numeric' };
 
       // Update Local
-      localTimeEl.textContent = now.toLocaleTimeString('en-US', timeOpts);
-      localDateEl.textContent = now.toLocaleDateString('en-US', dateOpts);
+      const localNow = new Date(now.toLocaleString('en-US', { timeZone: localZone }));
+      localTimeEl.textContent = localNow.toLocaleTimeString('en-US', timeOpts);
+      localDateEl.textContent = localNow.toLocaleDateString('en-US', dateOpts);
 
       // Render Contacts
       if (contacts.length > 0) {
